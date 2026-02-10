@@ -23,6 +23,7 @@ void Connect4::setUpBoard() {
     startGame();
 }
 
+// creates a piece to be placed with the given player number (0 or 1)
 Bit* Connect4::pieceForPlayer(const int playerNumber) {
     Bit *bit = new Bit();
     bit->LoadTextureFromFile(playerNumber == RED_PLAYER ? "red.png" : "yellow.png");
@@ -30,6 +31,7 @@ Bit* Connect4::pieceForPlayer(const int playerNumber) {
     return bit;
 }
 
+// returns true if the move is legal, false is not, then places the piece within the gameboard
 bool Connect4::actionForEmptyHolder(BitHolder &holder) {
     if (holder.bit()) return false;
 
@@ -63,6 +65,7 @@ bool Connect4::canBitMoveFromTo(Bit &bit, BitHolder &src, BitHolder &dst) {
     return false;
 }
 
+// Helper function for actionForEmptyHolder to find the board coordinates of a given holder
 void Connect4::getBoardPosition(BitHolder &holder, int &x, int &y) const
 {
     x = -1;
@@ -78,6 +81,7 @@ void Connect4::getBoardPosition(BitHolder &holder, int &x, int &y) const
     });
 }
 
+// Helper function to find the lowest empty row in a given column, returns -1 if the column is full
 int Connect4::getLowestEmptyRow(int column) const
 {
     if (!_grid) return -1;
@@ -94,6 +98,7 @@ int Connect4::getLowestEmptyRow(int column) const
     return -1; // column full
 }
 
+// Win check, looks at every square and checks in all 4 directions for a connect 4, returning the winner if found
 Player* Connect4::checkForWinner() {
     Player* winner = nullptr;
 
@@ -109,6 +114,7 @@ Player* Connect4::checkForWinner() {
     return nullptr;
 }
 
+//Helper function for win condition to see if the requested piece is within the game board
 bool Connect4::isInsideBoard(int x, int y) const {
     return x >= 0 && 
            x < _grid->getWidth() && 
@@ -116,6 +122,7 @@ bool Connect4::isInsideBoard(int x, int y) const {
            y < _grid->getHeight();
 }
 
+// Helper function for win condition to check for 4 in a row in a given direction, returning the winner if found
 bool Connect4::checkDirection(int startX, int startY, int deltaX, int deltaY, Player*& winner) const {
     ChessSquare* startSquare = _grid->getSquare(startX, startY);
     if (!startSquare || !startSquare->bit()) return false;
@@ -127,6 +134,7 @@ bool Connect4::checkDirection(int startX, int startY, int deltaX, int deltaY, Pl
         int x = startX + deltaX * i;
         int y = startY + deltaY * i;
 
+        // Checks to see if it is a win condition
         if (!isInsideBoard(x, y)) return false;
 
         ChessSquare* square = _grid->getSquare(x, y);
@@ -172,7 +180,6 @@ std::string Connect4::stateString() {
     _grid->forEachSquare([&](ChessSquare* square, int x, int y) {
         Bit* bit = square->bit();
         if (bit) {
-            // Compute correct index in the string
             int index = y * width + x;
             s[index] = '0' + (bit->getOwner()->playerNumber() + 1);
         }
@@ -181,6 +188,7 @@ std::string Connect4::stateString() {
     return s;
 }
 
+// Sets the grid based on a provided state string, where '0' is empty, '1' is player 1's piece, and '2' is player 2's piece
 void Connect4::setStateString(const std::string &s) {
     _grid->forEachSquare([&](ChessSquare* square, int x, int y) {
         size_t index = y * _grid->getWidth() + x;
@@ -203,13 +211,14 @@ void Connect4::stopGame() {
     });
 }
 
+// Main AI playing loop to determine optimal move using negamax with alpha-beta pruning, then place the piece in the optimal column
 void Connect4::updateAI() {
     Player* aiPlayer = getCurrentPlayer();
     if (!aiPlayer->isAIPlayer()) return;
 
     int bestMove = -1;
     int bestScore = -1000000;
-    int depth = 5;
+    int depth = 4;
 
     std::string state = stateString();
     char aiChar = '2';
@@ -251,6 +260,9 @@ void Connect4::updateAI() {
     }
 }
 
+// Helper function for AI to evaluate the board state, giving a score based on how favorable the position is for the given player
+// Runs through windows of every main position, and checks for win conditions within those
+// Not optimized, but runs well enough at depth 4 for a simple Connect-4 AI
 int Connect4::evaluate(const std::string& state, char player) {
     int score = 0;
 
@@ -307,6 +319,7 @@ int Connect4::evaluate(const std::string& state, char player) {
     return score;
 }
 
+// Looks through windows, assigns point values to scoring more in a row, and penalizes if the opponent has more in a row within the window
 int Connect4::evaluateWindow(const std::vector<char>& window, char player) {
     char opponent = (player == '1') ? '2' : '1';
     int score = 0;
@@ -325,6 +338,7 @@ int Connect4::evaluateWindow(const std::vector<char>& window, char player) {
     return score;
 }
 
+// Uses the state string to make a possible move in the given column for the given player, returning the new state string after the move
 std::string Connect4::makeMove(const std::string& state, int col, int playerNum){
     int width = 7;
     int height = 6;
@@ -341,6 +355,7 @@ std::string Connect4::makeMove(const std::string& state, int col, int playerNum)
     return newState;
 }
 
+// Main algorith for the AI, looks through every possible scenario and assigns scores based on the evaluate function, using negamax with alpha-beta pruning to optimize the search
 int Connect4::negamax(const std::string& state, int depth, int alpha, int beta, char player){
     if (depth == 0) return evaluate(state, player);
 
@@ -362,6 +377,8 @@ int Connect4::negamax(const std::string& state, int depth, int alpha, int beta, 
     return maxEval;
 }
 
+// Checks win states based on the state string, used for the AI to check for wins without needing to manipulate the actual game board
+// This ensures that the AI wins as fast as possible, and blocks oponent from winning as fast as possible
 bool Connect4::isWinningState(const std::string& state, char player) {
     // Horizontal
     for (int y = 0; y < 6; y++)
